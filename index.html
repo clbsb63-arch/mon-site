@@ -1,0 +1,839 @@
+<!doctype html>
+<html lang="fr">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <link rel="icon" type="image/png" href="logo.png" />
+    <title>RND.SHOP — Boost Valorant, Émulateur HWID & Comptes NFA</title>
+    <meta name="description" content="RND.SHOP : boost Valorant garanti, changement HWID émulateur, Unlock All et comptes NFA. Livraison express, paiement sécurisé, support Discord 24/7." />
+    <meta name="keywords" content="boost valorant, boosting valorant, compte valorant, émulateur valorant, hwid valorant, unlock all valorant, nfa valorant, rnd shop" />
+    <meta name="robots" content="index, follow" />
+    <meta name="theme-color" content="#c00000" />
+    <meta name="author" content="RND.SHOP" />
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="RND.SHOP" />
+    <meta property="og:locale" content="fr_FR" />
+    <meta property="og:title" content="RND.SHOP — Boost Valorant, Émulateur HWID & Comptes NFA" />
+    <meta property="og:description" content="Boost Valorant garanti, changement HWID émulateur, Unlock All et comptes NFA. Livraison express, paiement sécurisé, support Discord 24/7." />
+    <meta property="og:image" content="logo.png" />
+    <meta name="twitter:card" content="summary" />
+    <link rel="stylesheet" href="style.css" />
+  </head>
+  <body>
+    <div id="root"></div>
+    <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <script>
+/* ============================================================
+   RND.SHOP — Configuration
+   ------------------------------------------------------------
+   ⚠️ SÉCURITÉ : ces URLs de webhook Discord et ce lien PayPal
+   sont visibles par n'importe quel visiteur (code client public).
+   Ils étaient DÉJÀ exposés dans l'ancien site déployé.
+   → Il est FORTEMENT recommandé de RÉGÉNÉRER ces webhooks Discord
+     (Paramètres du salon > Intégrations > Webhooks) car les
+     anciens sont publics. Remplace-les ci-dessous.
+   ============================================================ */
+window.RND_CONFIG = {
+  discordInvite: "https://discord.gg/HM4QNUpmv",
+  paypalMe: "https://paypal.me/SantLen",
+  webhooks: {
+    // Commande finalisée (avec preuve de paiement, envoi de fichier)
+    order:  "https://discord.com/api/webhooks/1520106737493868614/5LYRT3gOY0rYOsJpusXGEqahXtMinZqabAJ7lNCuTgfYk3YBCZKElvYOsc6O-or6VBG2",
+    // Demande de boost de rang
+    boost:  "https://discord.com/api/webhooks/1520109888158699660/NmQXPykqxqVsD1n-8E0zMQDFRv1RnGtdVRoOnbxZMct8Ij-yHe_L0LbHluxY9d_cerpT",
+  },
+};
+
+    </script>
+    <script type="text/babel" data-presets="react">
+/* ============================================================
+   RND.SHOP — Application (React, sans build)
+   Reconstruite fidèlement à partir du site déployé.
+   ============================================================ */
+const { useState, useEffect, useRef, useContext, createContext, StrictMode, Fragment } = React;
+
+const CFG = window.RND_CONFIG;
+const DISCORD = CFG.discordInvite;
+const PAYPAL = CFG.paypalMe;
+
+/* ---------- Données produits ---------- */
+const RANKS = ["Iron 1","Iron 2","Iron 3","Bronze 1","Bronze 2","Bronze 3","Silver 1","Silver 2","Silver 3","Gold 1","Gold 2","Gold 3","Platinum 1","Platinum 2","Platinum 3","Diamond 1","Diamond 2","Diamond 3","Ascendant 1","Ascendant 2","Ascendant 3","Immortal 1","Immortal 2","Immortal 3","Radiant"];
+const TIERS = ["Iron","Bronze","Silver","Gold","Platinum","Diamond","Ascendant","Immortal","Radiant"];
+const TIER_STEP_COST = [5,5,10,20,30,40,50,60]; // coût pour franchir vers le palier suivant
+const SAME_TIER_COST = 2;                        // coût par division dans le même palier
+const tierIndex = r => TIERS.indexOf(r.split(" ")[0]);
+
+function boostPrice(from, to, currency) {
+  const r = RANKS.indexOf(from), i = RANKS.indexOf(to);
+  if (r < 0 || i < 0 || i <= r) return null;
+  let a = 0;
+  for (let e = r; e < i; e++) {
+    const t = tierIndex(RANKS[e]), n = tierIndex(RANKS[e + 1]);
+    a += n > t ? TIER_STEP_COST[t] : SAME_TIER_COST;
+  }
+  const sym = currency === "EUR" ? "€" : "$";
+  const disp = Number.isInteger(a) ? String(a) : a.toFixed(2).replace(".", currency === "EUR" ? "," : ".");
+  return { display: `${disp}${sym}`, value: a };
+}
+
+const EMU = {
+  EUR: [
+    { id:"emu-3d", label:"3 Jours",   price:24.99, display:"24,99€",  highlight:false },
+    { id:"emu-1w", label:"1 Semaine", price:49.99, display:"49,99€",  highlight:false },
+    { id:"emu-1m", label:"1 Mois",    price:99.99, display:"99,99€",  highlight:false },
+    { id:"emu-lt", label:"Lifetime",  price:249.99, display:"249,99€", highlight:true },
+  ],
+  USD: [
+    { id:"emu-3d", label:"3 Days",  price:24.99, display:"24.99$",  highlight:false },
+    { id:"emu-1w", label:"1 Week",  price:49.99, display:"49.99$",  highlight:false },
+    { id:"emu-1m", label:"1 Month", price:99.99, display:"99.99$",  highlight:false },
+    { id:"emu-lt", label:"Lifetime",price:249.99, display:"249.99$", highlight:true },
+  ],
+};
+const UNLOCK = {
+  EUR: [
+    { id:"unlock-3d", label:"3 Jours",   price:7.99,  display:"7,99€",  highlight:false },
+    { id:"unlock-1w", label:"1 Semaine", price:11.99, display:"11,99€", highlight:false },
+    { id:"unlock-1m", label:"1 Mois",    price:24.99, display:"24,99€", highlight:false },
+    { id:"unlock-lt", label:"Lifetime",  price:39.99, display:"39,99€", highlight:true },
+  ],
+  USD: [
+    { id:"unlock-3d", label:"3 Days",  price:7.99,  display:"7.99$",  highlight:false },
+    { id:"unlock-1w", label:"1 Week",  price:11.99, display:"11.99$", highlight:false },
+    { id:"unlock-1m", label:"1 Month", price:24.99, display:"24.99$", highlight:false },
+    { id:"unlock-lt", label:"Lifetime",price:39.99, display:"39.99$", highlight:true },
+  ],
+};
+const ACC_RANKS = ["Iron / Bronze","Silver","Gold","Platinum","Diamond","Ascendant","Immortal"];
+const ACC_PRICE = { "Iron / Bronze":7, Silver:10, Gold:14, Platinum:20, Diamond:29, Ascendant:42, Immortal:99 };
+const DAYS = { "3d":3, "1w":7, "1m":30 };
+
+function perDaySub(id, price, currency, lang) {
+  const key = id.split("-").pop() || "";
+  if (key === "lt") return lang === "FR" ? "Paiement unique" : "One-time payment";
+  const d = DAYS[key];
+  if (!d) return "";
+  const sym = currency === "EUR" ? "€" : "$";
+  const s = (price / d).toFixed(2).replace(".", currency === "EUR" ? "," : ".");
+  return lang === "FR" ? `≈ ${s}${sym} / jour` : `≈ ${s}${sym} / day`;
+}
+
+/* ---------- Textes FR / EN ---------- */
+const T = {
+  nav: { accueil:{FR:"Accueil",EN:"Home"}, boost:{FR:"Boost",EN:"Boost"}, services:{FR:"Services",EN:"Services"}, apropos:{FR:"A propos",EN:"About"}, discord:{FR:"Discord",EN:"Discord"} },
+  hero: {
+    badge:{FR:"PREMIUM BOOST & SERVICES",EN:"PREMIUM BOOST & SERVICES"},
+    sub:{FR:"Boostez votre progression. Dominez le jeu.",EN:"Boost your progression. Dominate the game."},
+    cta:{FR:"DÉCOUVRIR LES OFFRES",EN:"DISCOVER OFFERS"},
+    ctaAlt:{FR:"REJOINDRE LE DISCORD",EN:"JOIN THE DISCORD"},
+    trust:{FR:["Livraison < 5 min","Paiement sécurisé"],EN:["Delivery < 5 min","Secure payment"]},
+    scroll:{FR:"Découvrir",EN:"Scroll"},
+  },
+  features: {
+    f1:{title:{FR:"Boost Rapide",EN:"Fast Boost"},desc:{FR:"Des boosteurs Radiant et Immortal prennent en charge votre compte immédiatement.",EN:"Radiant and Immortal boosters take over your account immediately."}},
+    f2:{title:{FR:"100% Sécurisé",EN:"100% Secure"},desc:{FR:"VPN, mode hors-ligne, discrétion totale. Vos données ne sont jamais partagées.",EN:"VPN, offline mode, total discretion. Your data is never shared."}},
+    f3:{title:{FR:"Support 24/7",EN:"Support 24/7"},desc:{FR:"Notre équipe Discord est disponible à toute heure pour vos commandes et questions.",EN:"Our Discord team is available at any time for your orders and questions."}},
+  },
+  shop: {
+    sectionTag:{FR:"Nos produits",EN:"Our products"},
+    sectionTitle:{FR:"CHOISISSEZ VOTRE",EN:"CHOOSE YOUR"},
+    sectionSpan:{FR:"OFFRE",EN:"OFFER"},
+    sectionSub:{FR:"Boosting, Émulateur, Unlock All et NFA — livraison rapide, support garanti.",EN:"Boosting, Emulator, Unlock All and NFA — fast delivery, guaranteed support."},
+    surDevis:{FR:"Sur devis",EN:"On request"},
+    discord:{FR:"DISCORD",EN:"DISCORD"},
+    sent:{FR:"✓ ENVOYÉ",EN:"✓ SENT"},
+    add:{FR:"AJOUTER",EN:"ADD"},
+    added:{FR:"✓ AJOUTÉ",EN:"✓ ADDED"},
+    bestDeal:{FR:"MEILLEUR DEAL",EN:"BEST DEAL"},
+    fromRank:{FR:"Rang actuel",EN:"Current rank"},
+    toRank:{FR:"Rang désiré",EN:"Desired rank"},
+    boostFeatures:{FR:["Boosteurs Radiant / Immortal","VPN sur votre région","Modo hors ligne activé","Délai garanti ou remboursé","Suivi live sur Discord","Discret & sécurisé"],EN:["Radiant / Immortal boosters","VPN on your region","Offline mode enabled","Guaranteed deadline or refund","Live tracking on Discord","Discreet & secure"]},
+    emuFeatures:{FR:["Change ton HWID","Contourne le ban hardware","Compatible Vanguard","Mises à jour incluses","Installation guidée sur Discord","Activation instantanée"],EN:["Changes your HWID","Bypasses hardware ban","Vanguard compatible","Updates included","Guided setup on Discord","Instant activation"]},
+    unlockFeatures:{FR:["Tous les skins d'armes débloqués","Skins de mêlée (couteaux) inclus","Mises à jour automatiques","Compatible émulateur & PC","Support inclus"],EN:["All weapon skins unlocked","Melee (knife) skins included","Automatic updates","Emulator & PC compatible","Support included"]},
+    nfaFeatures:{FR:["Ranked ready (niveau 20+)","Full Access","Plusieurs régions disponibles","Livraison instantanée","Aucun remboursement après 45 minutes","Stock disponible"],EN:["Ranked ready (level 20+)","Full Access","Multiple regions available","Instant delivery","No refund after 45 minutes","In stock"]},
+    boostLabel:{FR:"Boosting",EN:"Boosting"},
+    emuLabel:{FR:"Émulateur",EN:"Emulator"},
+    unlockLabel:{FR:"Unlock All",EN:"Unlock All"},
+    comptes:{FR:"Comptes",EN:"Accounts"},
+    boostTitle:{FR:"Boost de Rang",EN:"Rank Boost"},
+    emuTitle:{FR:"Émulateur",EN:"Emulator"},
+    nfaTitle:{FR:"NFA Account — Ranked Ready",EN:"NFA Account — Ranked Ready"},
+    accountTitle:{FR:"Compte Ranked Ready",EN:"Ranked Ready Account"},
+    accountRankLabel:{FR:"Rang du compte",EN:"Account rank"},
+    accountFrom:{FR:"Dès",EN:"From"},
+  },
+  steps: {
+    tag:{FR:"Comment ça marche",EN:"How it works"},
+    title:{FR:"COMMANDER EN",EN:"ORDER IN"},
+    span:{FR:"4 ÉTAPES",EN:"4 STEPS"},
+    sub:{FR:"Simple, rapide, discret. Passez votre commande en moins de 5 minutes.",EN:"Simple, fast, discreet. Place your order in under 5 minutes."},
+    steps:[
+      {title:{FR:"Choisissez",EN:"Choose"},desc:{FR:"Boost, Émulateur, Unlock All ou NFA — sélectionnez votre produit.",EN:"Boost, Emulator, Unlock All or NFA — select your product."}},
+      {title:{FR:"Commandez",EN:"Order"},desc:{FR:"Rejoignez notre Discord et ouvrez un ticket pour finaliser la commande.",EN:"Join our Discord and open a ticket to finalize your order."}},
+      {title:{FR:"On livre",EN:"Delivered"},desc:{FR:"Compte livré ou boost démarré immédiatement.",EN:"Account delivered or boost started immediately."}},
+      {title:{FR:"Dominez",EN:"Dominate"},desc:{FR:"Utilisez vos avantages et écrasez vos adversaires en ranked.",EN:"Use your advantages and crush your opponents in ranked."}},
+    ],
+  },
+  footer: { howItWorks:{FR:"Comment ça marche",EN:"How it works"}, rights:{FR:"Tous droits réservés.",EN:"All rights reserved."} },
+  cart: { title:{FR:"Panier",EN:"Cart"}, empty:{FR:"Votre panier est vide",EN:"Your cart is empty"}, total:{FR:"Total",EN:"Total"}, checkout:{FR:"PASSER LA COMMANDE",EN:"CHECKOUT"} },
+  checkout: {
+    back:{FR:"Retour",EN:"Back"}, summary:{FR:"Récapitulatif",EN:"Summary"},
+    discordLabel:{FR:"Ton pseudo Discord",EN:"Your Discord username"},
+    discordPh:{FR:"ex: username#0000 ou username",EN:"e.g. username#0000 or username"},
+    emailLabel:{FR:"Ton adresse mail (pour le reçu)",EN:"Your email (for the receipt)"},
+    emailPh:{FR:"exemple@gmail.com",EN:"example@gmail.com"},
+    payMethod:{FR:"Méthode de paiement",EN:"Payment method"},
+    errDiscord:{FR:"Entre ton pseudo Discord avant de continuer.",EN:"Enter your Discord username before continuing."},
+    errEmail:{FR:"Entre une adresse mail valide.",EN:"Enter a valid email address."},
+    errProof:{FR:"Ajoute une preuve de paiement avant de confirmer.",EN:"Please upload a proof of payment before confirming."},
+    proofTitle:{FR:"Preuve d'envoi",EN:"Payment proof"},
+    proofSub:{FR:"Envoie maintenant ta preuve de paiement (screenshot PayPal / code Paysafecard).",EN:"Now upload your payment proof (PayPal screenshot / Paysafecard code)."},
+    proofDone:{FR:"✓ Paiement ouvert dans un nouvel onglet",EN:"✓ Payment opened in a new tab"},
+    proofBtn:{FR:"Choisir une image",EN:"Choose an image"},
+    proofChange:{FR:"Changer",EN:"Change"},
+    proofConfirm:{FR:"ENVOYER LA PREUVE",EN:"SEND PROOF"},
+    sending:{FR:"Envoi en cours...",EN:"Sending..."},
+    payBtn:{FR:e=>`Payer ${e} via PayPal`,EN:e=>`Pay ${e} via PayPal`},
+    ticketBtn:{FR:"Ouvrir un ticket Discord",EN:"Open a Discord ticket"},
+    loading:{FR:"Redirection...",EN:"Redirecting..."},
+  },
+};
+
+/* ---------- Webhooks Discord ---------- */
+async function postJSON(url, body) {
+  try { await fetch(url, { method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify(body) }); } catch {}
+}
+async function postFile(url, payload, file) {
+  try {
+    const fd = new FormData();
+    fd.append("file", file, file.name);
+    fd.append("payload_json", JSON.stringify(payload));
+    await fetch(url, { method:"POST", body:fd });
+  } catch {}
+}
+async function sendBoostRequest(from, to, price) {
+  await postJSON(CFG.webhooks.boost, { embeds:[{
+    title:"⚡ Demande de Boost", color:13369344,
+    description:"Un client souhaite un boost de rang. Veuillez ouvrir un ticket et le contacter.",
+    fields:[
+      {name:"📍 Rang actuel", value:`**${from}**`, inline:true},
+      {name:"🎯 Rang désiré", value:`**${to}**`, inline:true},
+      {name:"💰 Prix", value:`**${price}**`, inline:true},
+    ],
+    footer:{text:"RND.SHOP — Demande de boost reçue"}, timestamp:new Date().toISOString(),
+  }]});
+}
+async function sendOrder(items, total, currency, method, discord, email, file) {
+  const sym = currency === "EUR" ? "€" : "$";
+  const pm = method === "paypal" ? "PayPal" : "Paysafecard";
+  const fields = [
+    {name:"👤 Discord", value:`**${discord}**`, inline:true},
+    {name:"📧 Email", value:`**${email}**`, inline:true},
+    ...items.map(it => ({ name:it.title, value:`x${it.qty} — ${(it.price*it.qty).toFixed(2)}${sym}`, inline:true })),
+    {name:"💳 Paiement", value:pm, inline:true},
+    {name:"💰 Total", value:`**${total.toFixed(2)}${sym}**`, inline:true},
+    {name:"📌 Statut", value:"✅ Preuve de paiement reçue", inline:false},
+  ];
+  await postFile(CFG.webhooks.order, { embeds:[{ title:"✅ Nouvelle commande — Preuve d'envoi reçue", color:52292, fields, footer:{text:"RND.SHOP"}, timestamp:new Date().toISOString() }] }, file);
+}
+
+/* ---------- Panier (contexte) ---------- */
+const CartCtx = createContext(null);
+const useCart = () => useContext(CartCtx);
+function CartProvider({ children }) {
+  const [items, setItems] = useState([]);
+  const add = (p) => setItems(prev => {
+    const ex = prev.find(x => x.id === p.id);
+    if (ex) return prev.map(x => x.id === p.id ? { ...x, qty: x.qty + 1 } : x);
+    return [...prev, { ...p, qty: 1 }];
+  });
+  const remove = (id) => setItems(prev => prev.filter(x => x.id !== id));
+  const clear = () => setItems([]);
+  const total = items.reduce((s, x) => s + x.price * x.qty, 0);
+  const count = items.reduce((s, x) => s + x.qty, 0);
+  return React.createElement(CartCtx.Provider, { value:{ items, add, remove, clear, total, count } }, children);
+}
+
+/* ---------- Hooks visuels ---------- */
+function useReveal(deps) {
+  useEffect(() => {
+    const els = Array.from(document.querySelectorAll("[data-reveal]:not(.is-revealed)"));
+    const io = new IntersectionObserver((entries) => {
+      entries.forEach(e => { if (e.isIntersecting) { e.target.classList.add("is-revealed"); io.unobserve(e.target); } });
+    }, { threshold: 0.15 });
+    els.forEach(el => io.observe(el));
+    return () => io.disconnect();
+  }, deps);
+}
+function useSpotlight() {
+  useEffect(() => {
+    const handler = (e) => {
+      const el = e.target.closest && e.target.closest("[data-spotlight]");
+      if (!el) return;
+      const r = el.getBoundingClientRect();
+      el.style.setProperty("--mx", `${(e.clientX - r.left) / r.width * 100}%`);
+      el.style.setProperty("--my", `${(e.clientY - r.top) / r.height * 100}%`);
+    };
+    document.addEventListener("pointermove", handler);
+    return () => document.removeEventListener("pointermove", handler);
+  }, []);
+}
+
+/* ---------- Petits composants ---------- */
+function AnimatedPrice({ value, suffix, currency }) {
+  const [v, setV] = useState(value);
+  const prev = useRef(value);
+  useEffect(() => {
+    const from = prev.current, to = value, start = performance.now();
+    if (from === to) return;
+    let raf;
+    const step = (now) => {
+      const t = Math.min((now - start) / 500, 1);
+      const eased = 1 - Math.pow(1 - t, 3);
+      setV(from + (to - from) * eased);
+      if (t < 1) raf = requestAnimationFrame(step); else prev.current = to;
+    };
+    raf = requestAnimationFrame(step);
+    return () => cancelAnimationFrame(raf);
+  }, [value]);
+  const disp = Number.isInteger(value) && Math.abs(v - Math.round(v)) < 0.5
+    ? String(Math.round(v))
+    : v.toFixed(2).replace(".", currency === "EUR" ? "," : ".");
+  return React.createElement(Fragment, null, disp, suffix);
+}
+function CountUp({ end, suffix = "", run }) {
+  const [n, setN] = useState(0);
+  useEffect(() => {
+    if (!run) return;
+    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) { setN(end); return; }
+    const start = performance.now(); let raf;
+    const step = (now) => {
+      const t = Math.min((now - start) / 1300, 1);
+      const eased = 1 - Math.pow(1 - t, 3);
+      setN(Math.round(end * eased));
+      if (t < 1) raf = requestAnimationFrame(step);
+    };
+    raf = requestAnimationFrame(step);
+    return () => cancelAnimationFrame(raf);
+  }, [run, end]);
+  return React.createElement(Fragment, null, n, suffix);
+}
+
+/* ---------- Icônes ---------- */
+const IconBolt = <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>;
+const IconShield = <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>;
+const IconHeadset = <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 18v-6a9 9 0 0 1 18 0v6"/><path d="M21 19a2 2 0 0 1-2 2h-1a2 2 0 0 1-2-2v-3a2 2 0 0 1 2-2h3zM3 19a2 2 0 0 0 2 2h1a2 2 0 0 0 2-2v-3a2 2 0 0 0-2-2H3z"/></svg>;
+const IconCheckCircle = <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="9 12 11.5 14.5 16 9.5"/></svg>;
+const IconDiscord = <svg width="18" height="14" viewBox="0 0 71 55" fill="currentColor"><path d="M60.1 4.9A58.5 58.5 0 0 0 45.5 0a40.7 40.7 0 0 0-1.8 3.7 54.2 54.2 0 0 0-16.3 0A40 40 0 0 0 25.6 0 58.3 58.3 0 0 0 11 4.9C1.6 19-.9 32.7.3 46.2a58.9 58.9 0 0 0 17.9 9.1 44.4 44.4 0 0 0 3.8-6.2 38.2 38.2 0 0 1-6-2.9l1.4-1.1a42 42 0 0 0 36 0l1.5 1.1a38.1 38.1 0 0 1-6 2.9 44 44 0 0 0 3.8 6.2 58.6 58.6 0 0 0 17.9-9.1c1.5-15.5-2.6-29-10.5-40.2ZM23.7 37.9c-3.5 0-6.4-3.2-6.4-7.2s2.8-7.2 6.4-7.2 6.5 3.2 6.4 7.2c0 4-2.8 7.2-6.4 7.2Zm23.6 0c-3.5 0-6.4-3.2-6.4-7.2s2.8-7.2 6.4-7.2 6.5 3.2 6.4 7.2c0 4-2.8 7.2-6.4 7.2Z"/></svg>;
+const IconArrow = <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M5 12h14M12 5l7 7-7 7"/></svg>;
+const heroTrustIcons = [IconBolt, IconShield];
+
+/* ---------- Barre de progression ---------- */
+function ScrollProgress() {
+  const [p, setP] = useState(0);
+  useEffect(() => {
+    const on = () => { const e = document.documentElement; const n = e.scrollHeight - e.clientHeight; setP(n > 0 ? e.scrollTop / n * 100 : 0); };
+    on(); window.addEventListener("scroll", on, { passive:true }); window.addEventListener("resize", on);
+    return () => { window.removeEventListener("scroll", on); window.removeEventListener("resize", on); };
+  }, []);
+  return <div className="scroll-progress" aria-hidden="true"><div className="scroll-progress-bar" style={{ width:`${p}%` }} /></div>;
+}
+
+/* ---------- Navbar ---------- */
+function Navbar({ onCartOpen, lang }) {
+  const { count } = useCart();
+  const [active, setActive] = useState("accueil");
+  const [bump, setBump] = useState(false);
+  const prev = useRef(count);
+  useEffect(() => {
+    if (count > prev.current) { setBump(true); const t = setTimeout(() => setBump(false), 450); prev.current = count; return () => clearTimeout(t); }
+    prev.current = count;
+  }, [count]);
+  const links = [
+    { label:T.nav.accueil[lang], href:"#", id:"accueil" },
+    { label:T.nav.boost[lang], href:"#boost", id:"boost" },
+    { label:T.nav.services[lang], href:"#services", id:"services" },
+    { label:T.nav.apropos[lang], href:"#steps", id:"steps" },
+  ];
+  return (
+    <nav className="navbar">
+      <a href="#" className="navbar-brand" onClick={() => setActive("accueil")}>
+        <img className="brand-emblem" src="logo-emblem.png" alt="RND.SHOP" />
+        <span className="brand-name"><span className="bw">RND.</span><span className="br">SHOP</span></span>
+      </a>
+      <div className="navbar-links">
+        {links.map(l => <a key={l.id} href={l.href} className={active === l.id ? "active" : ""} onClick={() => setActive(l.id)}>{l.label}</a>)}
+      </div>
+      <div className="navbar-right">
+        <button className={`cart-icon-btn${bump ? " cart-bump" : ""}`} onClick={onCartOpen}>
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="9" cy="21" r="1"/><circle cx="20" cy="21" r="1"/><path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"/></svg>
+          {count > 0 && <span className="cart-badge">{count}</span>}
+        </button>
+        <a href={DISCORD} target="_blank" rel="noopener noreferrer" className="navbar-discord">{IconDiscord}Discord</a>
+      </div>
+    </nav>
+  );
+}
+
+/* ---------- Hero ---------- */
+const heroParticles = Array.from({ length: 18 }, (_, t) => ({ id:t, left:`${5 + t * 5.2}%`, delay:`${(t * 0.7) % 6}s`, duration:`${4 + (t * 0.4) % 4}s`, rot:`${-15 + (t * 7) % 30}deg` }));
+function Hero({ lang }) {
+  const ref = useRef(null);
+  useEffect(() => {
+    const el = ref.current; if (!el) return; let raf;
+    const move = (e) => {
+      const r = el.getBoundingClientRect();
+      const px = (e.clientX - r.left) / r.width * 2 - 1;
+      const py = (e.clientY - r.top) / r.height * 2 - 1;
+      cancelAnimationFrame(raf);
+      raf = requestAnimationFrame(() => { el.style.setProperty("--px", px.toFixed(3)); el.style.setProperty("--py", py.toFixed(3)); });
+    };
+    const leave = () => { el.style.setProperty("--px", 0); el.style.setProperty("--py", 0); };
+    el.addEventListener("mousemove", move); el.addEventListener("mouseleave", leave);
+    return () => { cancelAnimationFrame(raf); el.removeEventListener("mousemove", move); el.removeEventListener("mouseleave", leave); };
+  }, []);
+  return (
+    <section className="hero" ref={ref}>
+      <div className="hero-particles">{heroParticles.map(p => <div key={p.id} className="hero-line" style={{ left:p.left, animationDelay:p.delay, animationDuration:p.duration, "--rot":p.rot }} />)}</div>
+      <div className="hero-glow-wrap"><div className="hero-glow" /></div>
+      <img className="hero-watermark" src="logo-emblem.png" alt="" aria-hidden="true" />
+      <div className="hero-inner">
+        <div className="hero-badge reveal" style={{ "--d":"0s" }}><span className="hero-badge-dot" />{T.hero.badge[lang]}</div>
+        <h1 className="reveal" style={{ "--d":"0.08s" }}><span className="white">RND.</span><span className="red">SHOP</span></h1>
+        <p className="hero-sub reveal" style={{ "--d":"0.16s" }}>{T.hero.sub[lang]}</p>
+        <div className="hero-actions reveal" style={{ "--d":"0.24s" }}>
+          <a href="#shop" className="hero-cta">{T.hero.cta[lang]}{IconArrow}</a>
+          <a href={DISCORD} target="_blank" rel="noopener noreferrer" className="hero-cta-alt">{T.hero.ctaAlt[lang]}</a>
+        </div>
+        <div className="hero-trust reveal" style={{ "--d":"0.32s" }}>
+          {T.hero.trust[lang].map((item, i) => <span key={item} className="hero-trust-item"><span className="hero-trust-icon">{heroTrustIcons[i]}</span>{item}</span>)}
+        </div>
+      </div>
+      <a href="#shop" className="hero-scroll" aria-label={T.hero.scroll[lang]}>
+        <span>{T.hero.scroll[lang]}</span>
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M6 9l6 6 6-6"/></svg>
+      </a>
+    </section>
+  );
+}
+
+/* ---------- Features ---------- */
+const featureIcons = [IconBolt, IconShield, IconHeadset];
+const featureList = [T.features.f1, T.features.f2, T.features.f3];
+function Features({ lang }) {
+  return (
+    <section id="features" className="features">
+      {featureList.map((f, i) => (
+        <div key={i} className="feature-card" data-reveal data-spotlight style={{ "--i":i }}>
+          <div className="feature-icon">{featureIcons[i]}</div>
+          <div className="feature-content"><h3>{f.title[lang]}</h3><p>{f.desc[lang]}</p></div>
+        </div>
+      ))}
+    </section>
+  );
+}
+
+/* ---------- Stats ---------- */
+const stats = [
+  { icon:IconBolt, fixed:"< 5 min", label:"Livraison express" },
+  { icon:IconShield, end:100, suffix:"%", label:"Sécurisé & discret" },
+  { icon:IconHeadset, fixed:"24/7", label:"Support Discord" },
+  { icon:IconCheckCircle, fixed:"Garanti", label:"Ou remboursé" },
+];
+function Stats() {
+  const ref = useRef(null); const [run, setRun] = useState(false);
+  useEffect(() => {
+    const el = ref.current; if (!el) return;
+    const io = new IntersectionObserver(es => es.forEach(e => { if (e.isIntersecting) { setRun(true); io.disconnect(); } }), { threshold:0.3 });
+    io.observe(el); return () => io.disconnect();
+  }, []);
+  return (
+    <div className="stats" data-reveal ref={ref}>
+      {stats.map((s, i) => (
+        <div key={s.label} className="stat-item" data-spotlight style={{ "--i":i }}>
+          <span className="stat-icon">{s.icon}</span>
+          <div>
+            <div className="stat-value">{s.fixed ? s.fixed : <CountUp end={s.end} suffix={s.suffix} run={run} />}</div>
+            <div className="stat-label">{s.label}</div>
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+/* ---------- Bloc produit générique (Émulateur / Unlock) ---------- */
+function ProductBlock({ id, blockLabel, title, features, plans, titlePrefix, currency, lang, added, onAdd }) {
+  return (
+    <div className="product-block" id={id} data-reveal>
+      <div className="product-block-label">{blockLabel}</div>
+      <div className="pricing">
+        <div className="pricing-intro">
+          <div className="shop-card-game">Valorant</div>
+          <h3 className="pricing-title">{title}</h3>
+          <div className="pricing-chips">{features.map(f => <span key={f} className="pricing-chip"><span className="check-icon">✓</span>{f}</span>)}</div>
+        </div>
+        <div className="pricing-grid">
+          {plans.map(p => (
+            <div key={p.id} className={`plan-card${p.highlight ? " plan-card--featured" : ""}`} data-spotlight>
+              {p.highlight && <span className="plan-badge">{T.shop.bestDeal[lang]}</span>}
+              <div className="plan-period">{p.label}</div>
+              <div className="plan-price">{p.display}</div>
+              <div className="plan-sub">{perDaySub(p.id, p.price, currency, lang)}</div>
+              <button className={`shop-btn${added === p.id ? " btn-added" : ""}`} onClick={() => onAdd(p.id, `${titlePrefix} — ${p.label}`, p.price)}>
+                {added === p.id ? T.shop.added[lang] : T.shop.add[lang]}
+              </button>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ---------- Shop ---------- */
+function Shop({ currency, lang, onAdded }) {
+  const { add } = useCart();
+  const [added, setAdded] = useState(null);
+  const [from, setFrom] = useState(RANKS[0]);
+  const [to, setTo] = useState(RANKS[RANKS.length - 1]);
+  const [boostSent, setBoostSent] = useState(false);
+  const [accRank, setAccRank] = useState(ACC_RANKS[0]);
+  const boost = boostPrice(from, to, currency);
+  const accPrice = ACC_PRICE[accRank];
+  const sym = currency === "EUR" ? "€" : "$";
+
+  const flash = (id) => { setAdded(id); setTimeout(() => setAdded(null), 1200); };
+  const addItem = (id, title, price) => { add({ id, title, price, currency }); flash(id); onAdded && onAdded(); };
+  const requestBoost = async () => { await sendBoostRequest(from, to, boost ? boost.display : "Sur devis"); setBoostSent(true); window.open(DISCORD, "_blank"); };
+
+  return (
+    <section id="shop" className="shop">
+      <div className="section-header" data-reveal>
+        <div className="section-tag">{T.shop.sectionTag[lang]}</div>
+        <h2>{T.shop.sectionTitle[lang]} <span>{T.shop.sectionSpan[lang]}</span></h2>
+        <p>{T.shop.sectionSub[lang]}</p>
+      </div>
+
+      {/* Boost de rang */}
+      <div className="product-block" id="boost" data-reveal>
+        <div className="product-block-label">{T.shop.boostLabel[lang]}</div>
+        <div className="shop-card" data-spotlight>
+          <div className="shop-card-header">
+            <div><div className="shop-card-game">Valorant</div><div className="shop-card-title">{T.shop.boostTitle[lang]}</div></div>
+            <span className="shop-card-badge">{T.shop.surDevis[lang]}</span>
+          </div>
+          <div className="shop-card-body">
+            <div className="rank-selector">
+              <div className="rank-group">
+                <label className="rank-label">{T.shop.fromRank[lang]}</label>
+                <select className="rank-select" value={from} onChange={e => setFrom(e.target.value)}>{RANKS.map(r => <option key={r} value={r}>{r}</option>)}</select>
+              </div>
+              <div className="rank-arrow">→</div>
+              <div className="rank-group">
+                <label className="rank-label">{T.shop.toRank[lang]}</label>
+                <select className="rank-select" value={to} onChange={e => setTo(e.target.value)}>{RANKS.map(r => <option key={r} value={r}>{r}</option>)}</select>
+              </div>
+            </div>
+            <ul className="shop-card-features" style={{ marginTop:20 }}>{T.shop.boostFeatures[lang].map(f => <li key={f}><span className="check-icon">✓</span>{f}</li>)}</ul>
+            <div className="shop-card-footer" style={{ marginTop:20 }}>
+              <div>
+                <div className="shop-price" style={{ fontSize:13, opacity:.6, marginBottom:2 }}>{from} → {to}</div>
+                {boost
+                  ? <div className="shop-price" style={{ color:"#c00000" }}><AnimatedPrice value={boost.value} suffix={sym} currency={currency} /></div>
+                  : <div className="shop-price" style={{ fontSize:13, opacity:.4 }}>{lang === "FR" ? "Sélectionne un rang supérieur" : "Select a higher rank"}</div>}
+              </div>
+              <button className={`shop-btn${boostSent ? " btn-added" : ""}`} onClick={requestBoost} disabled={!boost}>{boostSent ? T.shop.sent[lang] : T.shop.discord[lang]}</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Émulateur */}
+      <ProductBlock id="services" blockLabel={T.shop.emuLabel[lang]} title={T.shop.emuTitle[lang]} features={T.shop.emuFeatures[lang]} plans={EMU[currency]} titlePrefix={T.shop.emuTitle[lang]} currency={currency} lang={lang} added={added} onAdd={addItem} />
+
+      {/* Unlock All */}
+      <ProductBlock blockLabel={T.shop.unlockLabel[lang]} title="Unlock All" features={T.shop.unlockFeatures[lang]} plans={UNLOCK[currency]} titlePrefix="Unlock All" currency={currency} lang={lang} added={added} onAdd={addItem} />
+
+      {/* Comptes NFA */}
+      <div className="product-block" data-reveal>
+        <div className="product-block-label">{T.shop.comptes[lang]}</div>
+        <div className="shop-grid cols-1">
+          <div className="shop-card" data-spotlight>
+            <div className="shop-card-header">
+              <div><div className="shop-card-game">Valorant</div><div className="shop-card-title">{T.shop.accountTitle[lang]}</div></div>
+              <span className="shop-card-badge">{T.shop.accountFrom[lang]} {ACC_PRICE[ACC_RANKS[0]]}{sym}</span>
+            </div>
+            <div className="shop-card-body">
+              <div className="rank-selector">
+                <div className="rank-group">
+                  <label className="rank-label">{T.shop.accountRankLabel[lang]}</label>
+                  <select className="rank-select" value={accRank} onChange={e => setAccRank(e.target.value)}>{ACC_RANKS.map(r => <option key={r} value={r}>{r}</option>)}</select>
+                </div>
+              </div>
+              <ul className="shop-card-features" style={{ marginTop:20 }}>{T.shop.nfaFeatures[lang].map(f => <li key={f}><span className="check-icon">✓</span>{f}</li>)}</ul>
+              <div className="shop-card-footer" style={{ marginTop:20 }}>
+                <div>
+                  <div className="shop-price" style={{ fontSize:13, opacity:.6, marginBottom:2 }}>{accRank}</div>
+                  <div className="shop-price" style={{ color:"#c00000" }}><AnimatedPrice value={accPrice} suffix={sym} currency={currency} /></div>
+                </div>
+                <button className={`shop-btn${added === `acc-${accRank}` ? " btn-added" : ""}`} onClick={() => addItem(`acc-${accRank}`, `${T.shop.accountTitle[lang]} — ${accRank}`, accPrice)}>
+                  {added === `acc-${accRank}` ? T.shop.added[lang] : T.shop.add[lang]}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+  );
+}
+
+/* ---------- Steps ---------- */
+function Steps({ lang }) {
+  return (
+    <section id="steps" className="steps">
+      <div className="section-header" data-reveal>
+        <div className="section-tag">{T.steps.tag[lang]}</div>
+        <h2>{T.steps.title[lang]} <span>{T.steps.span[lang]}</span></h2>
+        <p>{T.steps.sub[lang]}</p>
+      </div>
+      <div className="steps-grid">
+        {T.steps.steps.map((s, i) => (
+          <div key={i} className="step-card" data-reveal data-spotlight style={{ "--i":i }}>
+            <div className="step-number">{String(i + 1).padStart(2, "0")}</div>
+            <h3>{s.title[lang]}</h3><p>{s.desc[lang]}</p>
+          </div>
+        ))}
+      </div>
+    </section>
+  );
+}
+
+/* ---------- Footer ---------- */
+function Footer({ lang }) {
+  return (
+    <footer className="footer">
+      <div className="footer-brand">𝘙𝘕𝘋<span>.𝘚𝘏𝘖𝘗</span></div>
+      <div className="footer-links">
+        <a href="#shop">Services</a>
+        <a href="#steps">{T.footer.howItWorks[lang]}</a>
+        <a href={DISCORD} target="_blank" rel="noopener noreferrer">Discord</a>
+      </div>
+      <small className="footer-copy">© 2026 𝘙𝘕𝘋.𝘚𝘏𝘖𝘗 — {T.footer.rights[lang]}</small>
+    </footer>
+  );
+}
+
+/* ---------- Panier (tiroir) ---------- */
+function CartDrawer({ open, onClose, onCheckout, currency, lang }) {
+  const { items, remove, total, count } = useCart();
+  const sym = currency === "EUR" ? "€" : "$";
+  return (
+    <Fragment>
+      {open && <div className="drawer-overlay" onClick={onClose} />}
+      <div className={`cart-drawer${open ? " open" : ""}`}>
+        <div className="cart-header">
+          <span className="cart-title">{T.cart.title[lang]} <span className="cart-count">{count}</span></span>
+          <button className="cart-close" onClick={onClose}>✕</button>
+        </div>
+        {items.length === 0 ? (
+          <div className="cart-empty">{T.cart.empty[lang]}</div>
+        ) : (
+          <Fragment>
+            <div className="cart-items">
+              {items.map(it => (
+                <div key={it.id} className="cart-item">
+                  <div className="cart-item-info">
+                    <div className="cart-item-title">{it.title}</div>
+                    <div className="cart-item-price">{it.price.toFixed(2)}{sym} × {it.qty}</div>
+                  </div>
+                  <button className="cart-item-remove" onClick={() => remove(it.id)}>✕</button>
+                </div>
+              ))}
+            </div>
+            <div className="cart-footer">
+              <div className="cart-total"><span>{T.cart.total[lang]}</span><span>{total.toFixed(2)}{sym}</span></div>
+              <button className="checkout-btn" onClick={onCheckout}>{T.cart.checkout[lang]}<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M5 12h14M12 5l7 7-7 7"/></svg></button>
+            </div>
+          </Fragment>
+        )}
+      </div>
+    </Fragment>
+  );
+}
+
+/* ---------- Checkout ---------- */
+function Checkout({ currency, onBack, lang }) {
+  const { items, total, clear } = useCart();
+  const sym = currency === "EUR" ? "€" : "$";
+  const [step, setStep] = useState("form");        // form | waiting | proof
+  const [method, setMethod] = useState(null);       // paypal | paysafe
+  const [discord, setDiscord] = useState("");
+  const [email, setEmail] = useState("");
+  const [err, setErr] = useState("");
+  const [proof, setProof] = useState(null);
+  const [proofUrl, setProofUrl] = useState(null);
+  const [sending, setSending] = useState(false);
+  const fileRef = useRef(null);
+  // fige la commande au moment du paiement
+  const [snapItems] = useState(() => [...items]);
+  const [snapTotal] = useState(() => total);
+  const [chosen, setChosen] = useState(null);
+  const [snapDiscord, setSnapDiscord] = useState("");
+  const [snapEmail, setSnapEmail] = useState("");
+  const totalStr = `${total.toFixed(2)}${sym}`;
+  const snapTotalStr = `${snapTotal.toFixed(2)}${sym}`;
+
+  const openPayment = (url) => {
+    if (!method) return;
+    if (!discord.trim()) { setErr(T.checkout.errDiscord[lang]); return; }
+    if (!email.trim() || !email.includes("@")) { setErr(T.checkout.errEmail[lang]); return; }
+    setChosen(method); setSnapDiscord(discord.trim()); setSnapEmail(email.trim()); setErr("");
+    window.open(url, "_blank"); setStep("waiting");
+  };
+  const onFile = (e) => { const f = e.target.files && e.target.files[0]; if (f) { setProof(f); setProofUrl(URL.createObjectURL(f)); setErr(""); } };
+  const confirmProof = async () => {
+    if (!proof) { setErr(T.checkout.errProof[lang]); return; }
+    setSending(true);
+    await sendOrder(snapItems, snapTotal, currency, chosen, snapDiscord, snapEmail, proof);
+    clear(); window.location.href = DISCORD;
+  };
+
+  if (step === "waiting") {
+    const url = chosen === "paypal" ? PAYPAL : DISCORD;
+    return (
+      <div className="checkout-page"><div className="checkout-box">
+        <div className="proof-done-badge"><span className="proof-done-icon">↗</span>{lang === "FR" ? "Paiement ouvert dans un nouvel onglet" : "Payment opened in a new tab"}</div>
+        <h2 className="checkout-title" style={{ marginBottom:8 }}>{lang === "FR" ? "As-tu payé ?" : "Have you paid?"}</h2>
+        <p className="proof-sub">{lang === "FR" ? `Complète le paiement de ${snapTotalStr} sur l'onglet qui vient de s'ouvrir, puis reviens ici.` : `Complete the ${snapTotalStr} payment in the tab that just opened, then come back here.`}</p>
+        <button className="paypal-me-btn" style={{ marginBottom:12 }} onClick={() => setStep("proof")}>{lang === "FR" ? "✓ J'AI PAYÉ — Envoyer ma preuve" : "✓ I HAVE PAID — Upload my proof"}</button>
+        <button className="back-btn" style={{ width:"100%", justifyContent:"center", marginTop:0, opacity:.6 }} onClick={() => window.open(url, "_blank")}>{lang === "FR" ? "Rouvrir le paiement" : "Reopen payment"}</button>
+      </div></div>
+    );
+  }
+
+  if (step === "proof") {
+    return (
+      <div className="checkout-page"><div className="checkout-box">
+        <div className="proof-done-badge"><span className="proof-done-icon">✓</span>{T.checkout.proofDone[lang]}</div>
+        <h2 className="checkout-title">{T.checkout.proofTitle[lang]}</h2>
+        <p className="proof-sub">{T.checkout.proofSub[lang]}</p>
+        <div className="proof-summary">
+          {snapItems.map(it => <div key={it.id} className="checkout-item"><span>{it.title} × {it.qty}</span><span>{(it.price * it.qty).toFixed(2)}{sym}</span></div>)}
+          <div className="checkout-item total-line"><span>{T.cart.total[lang]}</span><span>{snapTotalStr}</span></div>
+        </div>
+        <input ref={fileRef} type="file" accept="image/*" style={{ display:"none" }} onChange={onFile} />
+        {proofUrl ? (
+          <div className="proof-preview-wrap">
+            <img className="proof-preview" src={proofUrl} alt="preuve" />
+            <button className="proof-change-btn" onClick={() => fileRef.current && fileRef.current.click()}>{T.checkout.proofChange[lang]}</button>
+          </div>
+        ) : (
+          <button className="proof-upload-btn" onClick={() => fileRef.current && fileRef.current.click()}>{T.checkout.proofBtn[lang]}</button>
+        )}
+        {err && <span className="input-error-msg" style={{ marginBottom:12 }}>{err}</span>}
+        <button className="checkout-btn" onClick={confirmProof} disabled={sending}>{sending ? T.checkout.sending[lang] : T.checkout.proofConfirm[lang]}</button>
+      </div></div>
+    );
+  }
+
+  return (
+    <div className="checkout-page"><div className="checkout-box">
+      <button className="back-btn" onClick={onBack}><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>{T.checkout.back[lang]}</button>
+      <h2 className="checkout-title">{T.checkout.summary[lang]}</h2>
+      <div className="checkout-items">
+        {items.map(it => <div key={it.id} className="checkout-item"><span>{it.title} × {it.qty}</span><span>{(it.price * it.qty).toFixed(2)}{sym}</span></div>)}
+        <div className="checkout-item total-line"><span>{T.cart.total[lang]}</span><span>{totalStr}</span></div>
+      </div>
+      <div className="discord-input-wrap">
+        <label className="discord-input-label">{IconDiscord}{T.checkout.discordLabel[lang]}</label>
+        <input className={`discord-input${err && !discord.trim() ? " input-error" : ""}`} type="text" placeholder={T.checkout.discordPh[lang]} value={discord} onChange={e => { setDiscord(e.target.value); setErr(""); }} />
+        {err && <span className="input-error-msg">{err}</span>}
+      </div>
+      <div className="discord-input-wrap">
+        <label className="discord-input-label"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ opacity:.7 }}><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>{T.checkout.emailLabel[lang]}</label>
+        <input className={`discord-input${err && !email.includes("@") ? " input-error" : ""}`} type="email" placeholder={T.checkout.emailPh[lang]} value={email} onChange={e => { setEmail(e.target.value); setErr(""); }} />
+      </div>
+      <p className="payment-label">{T.checkout.payMethod[lang]}</p>
+      <div className="payment-methods">
+        <button className={`method-btn${method === "paypal" ? " selected" : ""}`} onClick={() => setMethod("paypal")}>
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M7.076 21.337H2.47a.641.641 0 0 1-.633-.74L4.93.901C5.006.411 5.43.05 5.93.05h7.298c2.551 0 4.564.676 5.88 1.955 1.24 1.21 1.752 2.857 1.52 4.9-.48 4.162-3.29 6.46-8.13 6.46H9.892l-1.05 6.346a.641.641 0 0 1-.633.54z"/></svg>PayPal
+        </button>
+        <button className={`method-btn${method === "paysafe" ? " selected" : ""}`} onClick={() => setMethod("paysafe")}>
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>Paysafecard
+        </button>
+      </div>
+      {method === "paypal" && (
+        <div className="payment-panel">
+          <div className="checkout-notice">
+            <div className="notice-line"><span className="notice-flag">🇫🇷</span><span>Je te laisse envoyer <strong>{totalStr}</strong> en amis proche sans note.</span></div>
+            <div className="notice-line"><span className="notice-flag">🇬🇧</span><span>Please send <strong>{totalStr}</strong> to close friends without a note.</span></div>
+          </div>
+          <button className="paypal-me-btn" onClick={() => openPayment(PAYPAL)}>
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M7.076 21.337H2.47a.641.641 0 0 1-.633-.74L4.93.901C5.006.411 5.43.05 5.93.05h7.298c2.551 0 4.564.676 5.88 1.955 1.24 1.21 1.752 2.857 1.52 4.9-.48 4.162-3.29 6.46-8.13 6.46H9.892l-1.05 6.346a.641.641 0 0 1-.633.54z"/></svg>
+            {T.checkout.payBtn[lang](totalStr)}
+          </button>
+        </div>
+      )}
+      {method === "paysafe" && (
+        <div className="payment-panel">
+          <div className="checkout-notice">
+            <div className="notice-line"><span className="notice-flag">🇫🇷</span><span>Achète une Paysafecard de <strong>{totalStr}</strong> et envoie le code dans ton ticket Discord.</span></div>
+            <div className="notice-line"><span className="notice-flag">🇬🇧</span><span>Buy a Paysafecard of <strong>{totalStr}</strong> and send the code in your Discord ticket.</span></div>
+          </div>
+          <button className="paysafe-btn" onClick={() => openPayment(DISCORD)}>
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+            {T.checkout.ticketBtn[lang]}
+          </button>
+        </div>
+      )}
+    </div></div>
+  );
+}
+
+/* ---------- App ---------- */
+function App() {
+  const [currency, setCurrency] = useState("EUR");
+  const [lang, setLang] = useState("FR");
+  const [cartOpen, setCartOpen] = useState(false);
+  const [view, setView] = useState("home");
+  useReveal([view, currency, lang]);
+  useSpotlight();
+  useEffect(() => { window.scrollTo(0, 0); }, [view]);
+  return (
+    <div className="app">
+      <ScrollProgress />
+      <Navbar onCartOpen={() => setCartOpen(true)} lang={lang} />
+      {view === "home" && (
+        <Fragment>
+          <Hero lang={lang} />
+          <Features lang={lang} />
+          <Stats />
+          <Shop currency={currency} lang={lang} onAdded={() => setCartOpen(true)} />
+          <Steps lang={lang} />
+          <Footer lang={lang} />
+        </Fragment>
+      )}
+      {view === "checkout" && <Checkout currency={currency} onBack={() => setView("home")} lang={lang} />}
+      <CartDrawer open={cartOpen} onClose={() => setCartOpen(false)} onCheckout={() => { setCartOpen(false); setView("checkout"); }} currency={currency} lang={lang} />
+      <div className="floating-currency">
+        <button className={`currency-btn${currency === "EUR" ? " active" : ""}`} onClick={() => setCurrency("EUR")}>€</button>
+        <button className={`currency-btn${currency === "USD" ? " active" : ""}`} onClick={() => setCurrency("USD")}>$</button>
+        <div className="toggle-divider" />
+        <button className={`currency-btn${lang === "FR" ? " active" : ""}`} onClick={() => setLang("FR")}>FR</button>
+        <button className={`currency-btn${lang === "EN" ? " active" : ""}`} onClick={() => setLang("EN")}>EN</button>
+      </div>
+    </div>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById("root")).render(
+  <StrictMode><CartProvider><App /></CartProvider></StrictMode>
+);
+
+    </script>
+  </body>
+</html>

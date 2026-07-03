@@ -1,4 +1,4 @@
 User-agent: *
 Allow: /
 
-Sitemap: https://rnd-shop.vercel.app/sitemap.xml
+Sitemap: https://clbsb63-arch.github.io/mon-site/sitemap.xml

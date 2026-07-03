@@ -3,6 +3,8 @@
 Site vitrine / boutique (Boost Valorant, Émulateur HWID, Unlock All, Comptes NFA).
 Reconstruit à partir de la version déployée après reset du PC.
 
+**🌐 En ligne : https://clbsb63-arch.github.io/mon-site/**
+
 ## Contenu
 
 | Fichier | Rôle |
@@ -36,6 +38,18 @@ Pour une vraie sécurité, il faudrait passer les webhooks côté serveur (fonct
 
 Site **statique** : aucun build nécessaire.
 
-1. Pousse ce dossier sur ton dépôt GitHub `mon-site` (ou un nouveau).
-2. Sur [vercel.com](https://vercel.com) → New Project → importe le dépôt → Framework « Other » → Deploy.
-3. (Alternative sans Git : sur Vercel, « Deploy » puis glisse-dépose le dossier.)
+**Déjà déployé sur GitHub Pages** → https://clbsb63-arch.github.io/mon-site/
+Le dépôt `mon-site` est branché sur Pages (source : branche `main`, racine `/`).
+**Chaque `git push` sur `main` redéploie automatiquement le site en ~1 minute.**
+
+### Mettre à jour le site
+```bash
+# depuis le dossier du projet
+git add -A
+git commit -m "mes modifs"
+git push
+```
+
+### (Optionnel) Déployer aussi sur Vercel
+1. Sur [vercel.com](https://vercel.com) → New Project → importe `clbsb63-arch/mon-site`.
+2. Framework Preset « Other » → Deploy. (Permet de récupérer le domaine `rnd-shop.vercel.app`.)

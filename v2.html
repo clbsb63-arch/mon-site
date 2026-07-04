@@ -29,21 +29,44 @@
   .hero{position:relative;min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:20px;overflow:hidden}
   /* Mets ton propre screenshot ici : remplace le dégradé par une image */
   .hero-bg{
-    position:absolute;inset:0;z-index:0;
+    position:absolute;inset:0;z-index:0;will-change:transform;
     background:
       radial-gradient(60% 50% at 20% 20%, rgba(120,110,100,.55), transparent 60%),
       radial-gradient(50% 60% at 80% 70%, rgba(150,40,120,.45), transparent 60%),
       radial-gradient(70% 60% at 60% 40%, rgba(90,70,60,.5), transparent 65%),
       linear-gradient(160deg,#3a352f 0%,#1a1715 45%,#0c0b0a 100%);
     filter:saturate(1.05);
+    transform:scale(1.15);
+    animation:bgDrift 26s ease-in-out infinite alternate;
   }
-  /* Si tu ajoutes un fichier hero-bg.jpg dans le dossier, il s'affichera flouté par-dessus */
+  @keyframes bgDrift{
+    0%  {transform:scale(1.15) translate(-2%,-1%)}
+    100%{transform:scale(1.22) translate(2%,1.5%)}
+  }
+
+  /* ---- Fond VIDÉO (ton clip Valorant) : dépose "hero-bg.mp4" dans le dossier ---- */
+  .hero-video{
+    position:absolute;inset:0;z-index:0;width:100%;height:100%;
+    object-fit:cover;filter:blur(7px) brightness(.62);transform:scale(1.08);
+    animation:bgDrift 26s ease-in-out infinite alternate;
+  }
+  /* Fond IMAGE (option) : dépose "hero-bg.jpg" ; s'affiche flouté par-dessus le dégradé */
   .hero-bg::after{
     content:"";position:absolute;inset:0;
     background:url('hero-bg.jpg') center/cover no-repeat;
-    filter:blur(9px) brightness(.72);transform:scale(1.06);
+    filter:blur(9px) brightness(.72);
   }
+
+  /* ---- Orbes lumineuses flottantes (donnent du mouvement) ---- */
+  .orb{position:absolute;z-index:0;border-radius:50%;filter:blur(48px);opacity:.45;pointer-events:none}
+  .orb.c1{width:420px;height:420px;background:radial-gradient(circle,#ee5a52,transparent 65%);top:-6%;left:8%;animation:float1 16s ease-in-out infinite}
+  .orb.c2{width:480px;height:480px;background:radial-gradient(circle,#9b2fb0,transparent 65%);bottom:-10%;right:6%;animation:float2 19s ease-in-out infinite}
+  .orb.c3{width:340px;height:340px;background:radial-gradient(circle,#e0a24b,transparent 65%);top:40%;left:55%;animation:float1 22s ease-in-out infinite}
+  @keyframes float1{0%,100%{transform:translate(0,0)}50%{transform:translate(40px,-30px)}}
+  @keyframes float2{0%,100%{transform:translate(0,0)}50%{transform:translate(-50px,25px)}}
+
   .hero-overlay{position:absolute;inset:0;z-index:1;background:radial-gradient(80% 80% at 50% 45%, rgba(10,9,8,.35), rgba(8,7,6,.78))}
+  @media (prefers-reduced-motion:reduce){.hero-bg,.hero-video,.orb{animation:none}}
 
   /* ---------- Navbar pilule ---------- */
   .navbar{
@@ -132,6 +155,13 @@
   <!-- Héro -->
   <section class="hero">
     <div class="hero-bg"></div>
+    <!-- Ton clip Valorant en boucle (si le fichier hero-bg.mp4 existe) -->
+    <video class="hero-video" autoplay muted loop playsinline preload="auto">
+      <source src="hero-bg.mp4" type="video/mp4">
+    </video>
+    <div class="orb c1"></div>
+    <div class="orb c2"></div>
+    <div class="orb c3"></div>
     <div class="hero-overlay"></div>
 
     <div class="hero-inner">

@@ -1,0 +1,157 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>RND.SHOP — products made better</title>
+<link rel="icon" type="image/png" href="logo.png" />
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --coral:#ee5a52;          /* rouge/corail du titre + bouton */
+    --coral-dark:#d8443c;
+    --green:#7ee0a5;          /* texte du badge de confiance */
+    --bg:#100f0e;
+    --ink:#ffffff;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html,body{height:100%}
+  body{
+    font-family:Poppins,system-ui,sans-serif;
+    color:var(--ink);
+    background:var(--bg);
+    overflow-x:hidden;
+  }
+
+  /* ---------- Fond héro (flouté façon gameplay) ---------- */
+  .hero{position:relative;min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:20px;overflow:hidden}
+  /* Mets ton propre screenshot ici : remplace le dégradé par une image */
+  .hero-bg{
+    position:absolute;inset:0;z-index:0;
+    background:
+      radial-gradient(60% 50% at 20% 20%, rgba(120,110,100,.55), transparent 60%),
+      radial-gradient(50% 60% at 80% 70%, rgba(150,40,120,.45), transparent 60%),
+      radial-gradient(70% 60% at 60% 40%, rgba(90,70,60,.5), transparent 65%),
+      linear-gradient(160deg,#3a352f 0%,#1a1715 45%,#0c0b0a 100%);
+    filter:saturate(1.05);
+  }
+  /* Si tu ajoutes un fichier hero-bg.jpg dans le dossier, il s'affichera flouté par-dessus */
+  .hero-bg::after{
+    content:"";position:absolute;inset:0;
+    background:url('hero-bg.jpg') center/cover no-repeat;
+    filter:blur(9px) brightness(.72);transform:scale(1.06);
+  }
+  .hero-overlay{position:absolute;inset:0;z-index:1;background:radial-gradient(80% 80% at 50% 45%, rgba(10,9,8,.35), rgba(8,7,6,.78))}
+
+  /* ---------- Navbar pilule ---------- */
+  .navbar{
+    position:fixed;top:20px;left:50%;transform:translateX(-50%);z-index:50;
+    display:flex;align-items:center;gap:10px;
+    background:rgba(18,17,16,.72);-webkit-backdrop-filter:blur(14px);backdrop-filter:blur(14px);
+    border:1px solid rgba(255,255,255,.08);
+    border-radius:999px;padding:9px 9px 9px 22px;
+    box-shadow:0 10px 40px rgba(0,0,0,.45);
+    max-width:calc(100vw - 24px);
+  }
+  .nav-brand{font-weight:800;font-size:18px;letter-spacing:-.3px;margin-right:14px;white-space:nowrap}
+  .nav-links{display:flex;align-items:center;gap:6px}
+  .nav-links a{
+    color:rgba(255,255,255,.72);text-decoration:none;font-size:14.5px;font-weight:500;
+    padding:9px 15px;border-radius:999px;transition:.18s;white-space:nowrap;
+  }
+  .nav-links a:hover,.nav-links a.active{color:#fff;background:rgba(255,255,255,.07)}
+  .nav-panel{
+    display:inline-flex;align-items:center;gap:9px;margin-left:6px;
+    background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.1);
+    color:#fff;font-size:14px;font-weight:600;padding:9px 18px;border-radius:999px;
+    text-decoration:none;transition:.18s;white-space:nowrap;
+  }
+  .nav-panel:hover{background:rgba(255,255,255,.1)}
+  .nav-dot{width:8px;height:8px;border-radius:50%;background:#4da3ff;box-shadow:0 0 10px #4da3ff}
+
+  /* ---------- Contenu héro ---------- */
+  .hero-inner{position:relative;z-index:2;display:flex;flex-direction:column;align-items:center}
+  .trust{
+    display:inline-flex;align-items:center;gap:9px;
+    background:rgba(60,190,120,.14);border:1px solid rgba(120,224,165,.35);
+    color:var(--green);font-size:14px;font-weight:500;
+    padding:9px 18px;border-radius:999px;margin-bottom:34px;
+    backdrop-filter:blur(4px);
+  }
+  .trust svg{width:15px;height:15px}
+  .trust .arrow{opacity:.8}
+
+  h1{
+    font-weight:800;color:var(--coral);
+    font-size:clamp(52px,9.5vw,132px);line-height:.94;letter-spacing:-2px;
+    text-shadow:0 6px 40px rgba(0,0,0,.35);
+  }
+  .cta{
+    display:inline-flex;align-items:center;gap:11px;margin-top:44px;
+    background:linear-gradient(180deg,var(--coral),var(--coral-dark));
+    color:#fff;font-family:inherit;font-size:17px;font-weight:600;
+    border:none;border-radius:14px;padding:16px 30px;cursor:pointer;
+    box-shadow:0 12px 34px rgba(238,90,82,.4);transition:.2s;text-decoration:none;
+  }
+  .cta:hover{transform:translateY(-2px);box-shadow:0 16px 44px rgba(238,90,82,.55)}
+  .cta svg{width:19px;height:19px}
+
+  /* ---------- Chevron scroll ---------- */
+  .scroll-down{
+    position:absolute;bottom:34px;left:50%;transform:translateX(-50%);z-index:2;
+    width:42px;height:42px;border-radius:50%;border:1px solid rgba(238,90,82,.5);
+    display:flex;align-items:center;justify-content:center;color:var(--coral);
+    background:rgba(238,90,82,.08);animation:bob 2s ease-in-out infinite;cursor:pointer;
+  }
+  @keyframes bob{0%,100%{transform:translateX(-50%)}50%{transform:translate(-50%,7px)}}
+
+  @media (max-width:720px){
+    .nav-links{display:none}
+    .navbar{padding:8px 8px 8px 18px}
+    h1{letter-spacing:-1px}
+  }
+</style>
+</head>
+<body>
+  <!-- Navbar -->
+  <nav class="navbar">
+    <span class="nav-brand">RND.SHOP</span>
+    <div class="nav-links">
+      <a href="#" class="active">Home</a>
+      <a href="#products">Products</a>
+      <a href="#status">Status</a>
+      <a href="#support">Support</a>
+    </div>
+    <a href="https://discord.gg/HM4QNUpmv" target="_blank" rel="noopener" class="nav-panel">
+      <span class="nav-dot"></span>Customer Panel
+    </a>
+  </nav>
+
+  <!-- Héro -->
+  <section class="hero">
+    <div class="hero-bg"></div>
+    <div class="hero-overlay"></div>
+
+    <div class="hero-inner">
+      <div class="trust">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><path d="M9 12l2 2 4-4"/></svg>
+        Trusted by 5000+ Satisfied Customers
+        <span class="arrow">→</span>
+      </div>
+
+      <h1>RND.SHOP products<br>made better</h1>
+
+      <a href="https://rnd-shop.vercel.app" class="cta">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></svg>
+        Explore Products
+      </a>
+    </div>
+
+    <div class="scroll-down">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg>
+    </div>
+  </section>
+</body>
+</html>

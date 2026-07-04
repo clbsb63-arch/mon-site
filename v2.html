@@ -79,7 +79,12 @@
     text-shadow:0 8px 60px rgba(0,0,0,.6)}
   h1 .red{color:var(--red);text-shadow:0 0 50px rgba(255,43,43,.65)}
 
-  .sub{color:rgba(255,255,255,.8);font-size:clamp(16px,1.7vw,20px);max-width:560px;margin-top:26px;line-height:1.6}
+  .tagline{font-family:Anton,sans-serif;text-transform:uppercase;letter-spacing:3px;
+    font-size:clamp(16px,2.2vw,26px);color:#fff;margin-top:14px;
+    text-shadow:0 0 24px rgba(255,43,43,.5)}
+  .tagline::before,.tagline::after{content:"";display:inline-block;width:26px;height:2px;
+    background:var(--red);vertical-align:middle;margin:0 12px;box-shadow:0 0 10px var(--red)}
+  .sub{color:rgba(255,255,255,.8);font-size:clamp(16px,1.7vw,20px);max-width:560px;margin-top:20px;line-height:1.6}
 
   .cta-row{display:flex;flex-wrap:wrap;gap:14px;justify-content:center;margin-top:40px}
   .cta{display:inline-flex;align-items:center;gap:11px;padding:17px 34px;border-radius:12px;
@@ -126,7 +131,8 @@
 
     <div class="inner">
       <span class="badge"><span class="live"></span>Valorant · Boost &amp; Services en ligne</span>
-      <h1>DEVIENS<br><span class="red">INARRÊTABLE</span></h1>
+      <h1>RND<span class="red">.SHOP</span></h1>
+      <p class="tagline">Deviens inarrêtable.</p>
       <p class="sub">Boost de rang, émulateur HWID, Unlock All et comptes NFA. Livré vite, garanti, support Discord 24/7.</p>
       <div class="cta-row">
         <a class="cta cta-red" href="https://rnd-shop.vercel.app">Voir les offres
